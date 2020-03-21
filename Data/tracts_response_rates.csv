@@ -1,1 +1,1 @@
-date,GEO_ID,CAVG,state,county,tract,state_county,state_name,state_short,county_name
+RESP_DATE,GEO_ID,DRRALL,CRRALL,state,county,tract,state_county,state_name,state_short,county_name

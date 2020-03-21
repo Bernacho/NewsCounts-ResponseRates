@@ -2,10 +2,7 @@ import pandas as pd
 import numpy as np
 import requests
 import sys
-from datetime import date
 
-
-today = date.today()
 
 ## Load state and county data
 states = pd.read_csv("Data/state_codes.txt",sep=" 	", engine='python')
@@ -15,7 +12,7 @@ counties = pd.read_csv("Data/county_codes.txt",sep=" 	", engine='python')
 key = "124e1b1d5ceca3b46b3f6bd97d95ea8d4d780e28"
 
 ## Pull state data
-url = f"https://api.census.gov/data/2020/dec/responserate?get=GEO_ID,CAVG&for=state:*&key={key}"
+url = f"https://api.census.gov/data/2020/dec/responserate?get=RESP_DATE,GEO_ID,DRRALL,CRRALL&for=state:*&key={key}"
 response = requests.get(url)
 if response:
     print('State: Success!')
@@ -24,18 +21,23 @@ else:
     sys.exit("State: "+response.text)
 
 state_df = pd.DataFrame.from_records(response.json()[1:])
+state_df.columns = response.json()[0]
 
-state_df.columns = ["GEO_ID","CAVG","state"]
+old_df = pd.read_csv("Data/sates_response_rates.csv")
+if old_df.shape[0] > 0 :
+    last_old = old_df.iloc[old_df.shape[0]-1]
+    last = state_df.iloc[state_df.shape[0]-1]
+    if last_old.RESP_DATE == last.RESP_DATE:
+        print("No new data")
+        sys.exit("No new data")
+print("New data available!")
+
 state_df['state'] = state_df.state.astype(int)
 
 state_df['state_name'] = state_df.state.map(states.set_index('code')['state'])
 
 state_df['state_short'] = state_df.state.map(states.set_index('code')['state_code'])
 
-columns = list(state_df.columns)
-state_df["date"] = str(today)
-
-state_df = state_df[["date"]+columns]
 state_df.sort_values(by="state",inplace=True)
 state_df = state_df.reset_index(drop=True)
 
@@ -43,7 +45,7 @@ state_df.to_csv("Data/sates_response_rates.csv",mode = 'a', header = False, inde
 
 ## Pull counties data
 data=[]
-url = f"https://api.census.gov/data/2020/dec/responserate?get=GEO_ID,CAVG&for=county:*&key={key}"
+url = f"https://api.census.gov/data/2020/dec/responserate?get=RESP_DATE,GEO_ID,DRRALL,CRRALL&for=county:*&key={key}"
 response = requests.get(url)
 if response:
     print('County: Success!')
@@ -63,12 +65,9 @@ county_df['state_short'] = county_df.state.map(states.set_index('code')['state_c
 
 county_df['county_name'] = county_df.state_county.map(counties.set_index('code')['county'])
 
-columns = list(county_df.columns)
-county_df["date"] = str(today)
-
-county_df = county_df[["date"]+columns]
 county_df.sort_values(by=["state_county"],inplace=True)
 county_df = county_df.reset_index(drop=True)
+
 
 county_df.to_csv("Data/counties_response_rates.csv",mode = 'a', header = False, index = False)
 
@@ -81,7 +80,7 @@ for i in range(len(state_df)):
         num = f"0{s.state}"
     else:
         num = s.state
-    url = f"https://api.census.gov/data/2020/dec/responserate?get=GEO_ID,CAVG&for=tract:*&in=state:{num}&key={key}"
+    url = f"https://api.census.gov/data/2020/dec/responserate?get=RESP_DATE,GEO_ID,DRRALL,CRRALL&for=tract:*&in=state:{num}&key={key}"
     response = requests.get(url)
     if  not response:
         print('Tract: An error has occurred.')
@@ -105,10 +104,6 @@ tract_df['state_short'] = tract_df.state.map(states.set_index('code')['state_cod
 
 tract_df['county_name'] = tract_df.state_county.map(counties.set_index('code')['county'])
 
-columns = list(tract_df.columns)
-tract_df["date"] = str(today)
-
-tract_df = tract_df[["date"]+columns]
 tract_df.sort_values(by=["state_county","tract"],inplace=True)
 tract_df = tract_df.reset_index(drop=True)
 
